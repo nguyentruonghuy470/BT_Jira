@@ -30,9 +30,7 @@ const Modal = ({ movieId, open, handleClose }) => {
     deps: [movieId],
   });
   const {
-    reset,
     control,
-    formState,
     setValue,
     register,
     handleSubmit,

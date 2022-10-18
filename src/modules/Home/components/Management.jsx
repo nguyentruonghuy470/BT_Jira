@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 import { DataGrid, GridColDef, GridValueGetterParams } from "@mui/x-data-grid";
 
-import { Text } from "@mantine/core";
-
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faGear,
@@ -15,53 +13,34 @@ import * as images from "../images";
 
 import useRequest from "hooks/useRequest";
 import projectAPI from "apis/projectAPI";
+import userAPI from "apis/userAPI";
 
 import Modal from "./Modal";
+import { Link } from "react-router-dom";
+
+import Swal from "sweetalert2";
+import InforUser from "./InforUser";
+
+import { Popover, Text, Button } from "@mantine/core";
+
+import { useNavigate } from "react-router-dom";
 
 const Management = () => {
+  const navigate = useNavigate();
+  const [id, setid] = React.useState("");
+  const [open, setOpen] = React.useState(false);
+  const [sidebarOpen, setSideBarOpen] = useState(false);
+  const [movieId, setMovieId] = React.useState(7576);
+
   const {
     data: movies,
     isLoading,
     error,
   } = useRequest(() => projectAPI.getProjectAll());
 
-  const [open, setOpen] = React.useState(false);
-  
   const handleClose = () => {
     setOpen(false);
   };
-
-  // const handleMaxWidthChange = (event) => {
-  //   setMaxWidth(
-  //     // @ts-expect-error autofill of arbitrary value is not handled.
-  //     event.target.value
-  //   );
-  // };
-
-  // const handleFullWidthChange = (event) => {
-  //   setFullWidth(event.target.checked);
-  // };
-  const columns = [
-    { field: "id", headerName: "ID", width: 70 },
-    { field: "firstName", headerName: "First name", width: 130 },
-    { field: "lastName", headerName: "Last name", width: 130 },
-    {
-      field: "age",
-      headerName: "Age",
-      type: "number",
-      width: 90,
-    },
-    {
-      field: "fullName",
-      headerName: "Full name",
-      description: "This column has a value getter and is not sortable.",
-      sortable: false,
-      width: 160,
-      valueGetter: (params) =>
-        `${params.row.firstName || ""} ${params.row.lastName || ""}`,
-    },
-  ];
-  // const row1 = movies?.map((i) => {
   //   return i.id;
   // });
   // console.log(row1);
@@ -75,18 +54,79 @@ const Management = () => {
   //   { id: 8, lastName: "Frances", firstName: "Rossini", age: 36 },
   //   { id: 9, lastName: "Roxie", firstName: "Harvey", age: 65 },
   // ];
-  
-  const [sidebarOpen, setSideBarOpen] = useState(false);
+
   const sidebarClass = sidebarOpen ? `${SCSS.sidebaropen}` : `${SCSS.sidebar}`;
   const handleViewSidebar = () => {
     setSideBarOpen(!sidebarOpen);
   };
-  const [movieId, setMovieId] = React.useState(7576);
+
+  const { data: handleAddUser } = useRequest(
+    (info) => projectAPI.addUserForProject(info),
+    { isManual: true }
+  );
+
+  const { data: handleDeleteProject } = useRequest(
+    (id) => projectAPI.deleteProject(id),
+    { isManual: true }
+  );
+
+  const submitDeleteProject = async (id) => {
+    try {
+      await handleDeleteProject(id);
+      Swal.fire({
+        icon: "success",
+        title: "Xóa Project thành công",
+        buttons: "Ok",
+      });
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } catch (error) {
+      Swal.fire({
+        text: error,
+        icon: "error",
+        title: "Xóa Project thất bại",
+        buttons: "Ok",
+      });
+    }
+  };
 
   const handleGetMovieId = (id) => {
     setOpen(true);
     setMovieId(id);
   };
+
+  const submitAddUser = async (idUser, projectId) => {
+    const info = {
+      projectId: projectId,
+      userId: idUser,
+    };
+    try {
+      await handleAddUser(info);
+      Swal.fire({
+        icon: "success",
+        title: "Thêm thành viên thành công",
+        buttons: "Ok",
+      });
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } catch (error) {
+      Swal.fire({
+        text: error,
+        icon: "error",
+        title: "Thêm thành viên thất bại",
+        buttons: "Ok",
+      });
+    }
+  };
+
+  const { data: infoUser1 } = useRequest(() => userAPI.getAllUser());
+
+  const handleMovieShowing = (projectId) => {
+    navigate(`/projectDetail/${projectId}`);
+  };
+
   return (
     <div className={SCSS.containerManagement}>
       <div className={sidebarClass}>
@@ -155,7 +195,7 @@ const Management = () => {
               weight={700}
               style={{ fontFamily: "Greycliff CF, sans-serif" }}
             >
-              Project Management
+              <Link to="/task">Project Management</Link>
             </Text>
           </div>
           <div>
@@ -173,7 +213,7 @@ const Management = () => {
               weight={700}
               style={{ fontFamily: "Greycliff CF, sans-serif" }}
             >
-              Create project
+              <Link to="/createProject">Create project</Link>
             </Text>
           </div>
         </div>
@@ -200,29 +240,87 @@ const Management = () => {
                   <td>{product.categoryName}</td>
                   <td>{product.creator.name}</td>
                   <td>
-                    {product.members.map((i, index) => {
-                      return <span key={index}>{i.name}</span>;
-                    })}
+                    <div className={SCSS.members}>
+                      {product.members.map((i, index) => (
+                        <div key={index} className={SCSS.containerMember}>
+                          <div>
+                            <img src={i.avatar} />
+                          </div>
+                        </div>
+                      ))}
+                      <div className={SCSS.infoMember}>
+                        <InforUser setid={product.id} />
+                      </div>
+                    </div>
+                    <Popover
+                      width={200}
+                      position="right"
+                      withArrow
+                      shadow="md"
+                      styles={{}}
+                    >
+                      <Popover.Target>
+                        <Button>
+                          <FontAwesomeIcon
+                            className="iconUser"
+                            icon={faPlus}
+                            color="#9e9e9e"
+                          />
+                        </Button>
+                      </Popover.Target>
+                      <Popover.Dropdown>
+                        <div className={SCSS.containerTextUser}>
+                          <Text size="sm">Add User</Text>
+                        </div>
+                        <div className={SCSS.containerAddUser}>
+                          {infoUser1?.map((i) => {
+                            return (
+                              <div key={i.userId}>
+                                <p
+                                  onClick={() =>
+                                    submitAddUser(i.userId, product.id)
+                                  }
+                                >
+                                  {i.name}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </Popover.Dropdown>
+                    </Popover>
+                    {/* {product.members.map((i, index) => {
+                    //   return <span key={index}>{i.name}</span>;
+                    // })} */}
                   </td>
                   <td>
-                    <button
-                      className="btn btn-success me-2"
-                      onClick={() => handleGetMovieId(product.id)}
-                    >
-                      Update
-                    </button>
-                    <button
-                      className="btn btn-danger"
-                      // onClick={}
-                    >
-                      Remove
-                    </button>
+                    <div className={SCSS.projectManagementButton}>
+                      <button
+                        type="button"
+                        class="btn btn-primary me-2"
+                        onClick={() => handleMovieShowing(product.id)}
+                      >
+                        Detail
+                      </button>
+                      <button
+                        className="btn btn-success me-2"
+                        onClick={() => handleGetMovieId(product.id)}
+                      >
+                        Update
+                      </button>
+                      <button
+                        className="btn btn-danger"
+                        onClick={() => submitDeleteProject(product.id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <Modal handleClose={handleClose} open={open} movieId={movieId} />
+          {/* <Modal handleClose={handleClose} open={open} movieId={movieId} /> */}
         </div>
       </div>
     </div>
